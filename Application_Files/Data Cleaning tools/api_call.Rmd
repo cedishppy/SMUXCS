@@ -1,0 +1,83 @@
+---
+title: "API CALLS FOR LON & LAT"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+packages = c('tidyverse')
+
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p,character.only = T)
+}
+```
+
+## Initialise datasets
+
+```{r}
+## Reading the CSV file
+jp_df <- read.csv("data/japan.csv") 
+colnames(jp_df)[1] <- "latitude"
+# Checking the Dataset
+head(jp_df)
+```
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(httr)
+library(jsonlite)
+library('plotly')
+
+```
+Generate Column for address of Japan Using API Call
+```{r}
+#Adding a new columns to the current df
+jp_df$Prefrecture <- ''
+new_df <- jp_df %>%
+  select('latitude', 'longitude',"value",'Prefrecture')
+```
+```{r}
+#using a for loop, I use an API call for each row of the df. It takes in lon and lat values and returns a country name which is added to the new column
+for (row in 1:nrow(jp_df)){
+#for (row in 1:10){
+      lon = jp_df[row,"longitude"]
+      lat = jp_df[row,"latitude"]
+      # Free API client call. Returns data in Json format which we use the jsonlite library to query out country name into a string format
+      res = GET("https://api.bigdatacloud.net/data/reverse-geocode-client?", query=list(latitude=lat,longitude=lon,localityLanguage="en"))
+      data = fromJSON(rawToChar(res$content))
+      data_frame_json = data$localityInfo$administrative
+      counter = 0
+      for (i in 1:nrow(data_frame_json)){
+        if (data_frame_json[i,"adminLevel"] == 4 & counter == 0){
+          
+          Prefrec <- data_frame_json[i,"isoName"]
+          if (!is.na(Prefrec)){
+          new_df$Prefrecture[row] <- Prefrec
+          counter = counter + 1
+          }
+          
+        }
+        
+      }
+}
+
+```
+```{r}
+new_df
+```
+```{r}
+write.csv(new_df,"C:\\Users\\cedrick\\Desktop\\Y4S1\\Cycovid\\FYP_Dash_App\\dash-financial-report\\data\\Japan_Data_right_table_new.csv", row.names = FALSE)
+```
+
+
+
+
+
